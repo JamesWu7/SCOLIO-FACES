@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="logo.png" alt="Faces Logo" width="300"/>
+  <img src="logo.png" alt="Faces Logo" width="500"/>
 </p>
 
-# Faces
+# FACES
 
-**脊柱侧弯患者人脸识别 — 病因区分**
+**Facial Analysis for Classification of Etiology in Scoliosis**
 
-基于深度学习的人脸图像分析，用于脊柱侧弯（Scoliosis）患者的病因亚型分类与鉴别。
+Deep learning-based facial image analysis for etiological subtype classification of scoliosis patients.
