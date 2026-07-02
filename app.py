@@ -13,13 +13,16 @@ from faces_inference import predict_faces
 APP_ROOT = Path(__file__).resolve().parent
 
 CLINICAL_NOTE = (
-    "本工具用于 FACES 研究框架下的科研展示和临床分诊辅助。模型输出表示相对支持度，"
-    "不能作为独立诊断结论，也不能替代 X-ray、MRI、遗传检测、病史查体和脊柱外科/"
-    "医学遗传专科评估。若结果提示 scoliosis 或 SS 相关支持度较高，建议进入标准临床评估流程。"
+    "本工具用于面部特征辅助脊柱侧弯病因分层研究框架下的科研展示和临床分诊辅助。"
+    "模型输出表示相对支持度，不能作为独立诊断结论，也不能替代站立位全脊柱放射片、"
+    "脊柱磁共振成像、遗传检测、病史查体和脊柱外科/医学遗传专科评估。若结果提示脊柱侧弯"
+    "或综合征型脊柱侧弯相关支持度较高，建议进入标准临床评估流程。"
 )
 
 
 def _to_dataframe(items, label_col="类别"):
+    if not items:
+        return pd.DataFrame([{label_col: "未运行", "概率": "", "百分比": ""}])
     return pd.DataFrame(
         [
             {
@@ -33,6 +36,8 @@ def _to_dataframe(items, label_col="类别"):
 
 
 def _plot_probabilities(items, title, limit=None):
+    if not items:
+        return None
     plot_items = items[:limit] if limit else items
     labels = [item["class_name"] for item in plot_items][::-1]
     values = [item["probability"] for item in plot_items][::-1]
@@ -43,7 +48,7 @@ def _plot_probabilities(items, title, limit=None):
     ax.set_yticks(range(len(labels)))
     ax.set_yticklabels(labels, fontsize=9)
     ax.set_xlim(0, 1)
-    ax.set_xlabel("Model-derived support")
+    ax.set_xlabel("模型相对支持度")
     ax.set_title(title)
     ax.grid(axis="x", alpha=0.25)
     for bar, value in zip(bars, values):
@@ -61,22 +66,31 @@ def _plot_probabilities(items, title, limit=None):
 
 def _summary_markdown(result):
     top = result["top_summary"]
-    subtype_lines = "\n".join(
-        [
-            f"- {item['class_name']}: {item['probability']:.3f}"
-            for item in top["ss_subtype_top3"]
-        ]
-    )
+    if result.get("downstream_skipped"):
+        downstream_block = (
+            "- 病因大类最高支持类别：`未运行`\n"
+            "- 综合征型脊柱侧弯 11 类细分：`未运行`\n\n"
+            "二分类结果未提示脊柱侧弯相关面部特征，因此本次没有进入后续两个模型。"
+        )
+    else:
+        subtype_lines = "\n".join(
+            [
+                f"- {item['class_name']}: {item['probability']:.3f}"
+                for item in top["ss_subtype_top3"]
+            ]
+        )
+        downstream_block = (
+            f"- 病因大类最高支持类别：`{top['etiology_top1']}` ({top['etiology_probability']:.3f})\n"
+            f"- 综合征型脊柱侧弯 11 类细分前三位：\n{subtype_lines}"
+        )
     warnings = "\n".join([f"- {html.escape(w)}" for w in result["warnings"]])
     warning_block = f"\n\n**提示**\n{warnings}" if warnings else ""
 
     return f"""
 **分层预测摘要**
 
-- 二分类筛查 Top-1: `{top["screening_result"]}` ({top["screening_probability"]:.3f})
-- 病因大类 Top-1: `{top["etiology_top1"]}` ({top["etiology_probability"]:.3f})
-- SS 细分类 Top-3:
-{subtype_lines}
+- 二分类筛查最高支持类别：`{top["screening_result"]}` ({top["screening_probability"]:.3f})
+{downstream_block}
 
 **运行信息**
 
@@ -97,7 +111,7 @@ def run_faces_app(image: Image.Image):
     binary_df = _to_dataframe(result["binary"])
     etiology_df = _to_dataframe(result["etiology"])
     subtype_df = _to_dataframe(result["ss_subtypes"])
-    fig = _plot_probabilities(result["ss_subtypes"], "SS subtype ranked probabilities")
+    fig = _plot_probabilities(result["ss_subtypes"], "综合征型脊柱侧弯 11 类细分支持度排序")
 
     return (
         result["cropped_face"],
@@ -110,13 +124,12 @@ def run_faces_app(image: Image.Image):
     )
 
 
-with gr.Blocks(title="FACES", theme=gr.themes.Soft()) as demo:
+with gr.Blocks(title="面部特征辅助脊柱侧弯病因分层", theme=gr.themes.Soft()) as demo:
     gr.Markdown(
         """
-# FACES
-**Facial Analysis for Classification of Etiology in Scoliosis**
+# 面部特征辅助脊柱侧弯病因分层
 
-上传一张清晰、无遮挡、正面人脸照片，系统将按 FACES 分层框架输出二分类筛查、AIS/CMS/SS 病因大类和 SS 11 类细分支持度。
+上传一张清晰、无遮挡、正面人脸照片。系统先进行“未提示脊柱侧弯相关面部特征/提示脊柱侧弯相关面部特征”二分类筛查；只有当二分类结果提示脊柱侧弯相关面部特征时，才继续输出病因大类和综合征型脊柱侧弯 11 类细分支持度。
 """
     )
 
@@ -130,16 +143,16 @@ with gr.Blocks(title="FACES", theme=gr.themes.Soft()) as demo:
 
     with gr.Tabs():
         with gr.Tab("二分类筛查"):
-            binary_table = gr.Dataframe(label="HC vs scoliosis", interactive=False)
+            binary_table = gr.Dataframe(label="二分类筛查概率", interactive=False)
         with gr.Tab("病因大类"):
-            etiology_table = gr.Dataframe(label="AIS / CMS / SS", interactive=False)
-        with gr.Tab("SS 11类细分"):
-            subtype_table = gr.Dataframe(label="SS subtype probabilities", interactive=False)
-            subtype_plot = gr.Plot(label="SS subtype ranked probabilities")
+            etiology_table = gr.Dataframe(label="病因大类概率", interactive=False)
+        with gr.Tab("综合征型 11 类细分"):
+            subtype_table = gr.Dataframe(label="综合征型脊柱侧弯 11 类细分概率", interactive=False)
+            subtype_plot = gr.Plot(label="综合征型脊柱侧弯 11 类细分支持度排序")
         with gr.Tab("医学说明"):
             clinical_note = gr.Textbox(
                 value=CLINICAL_NOTE,
-                label="Clinical note",
+                label="医学说明",
                 lines=5,
                 interactive=False,
             )

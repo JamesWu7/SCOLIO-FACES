@@ -12,26 +12,28 @@ SUPERCLASS_WEIGHTS = SUPERCLASS_MODEL_DIR / "best_auc_model_seed53.pth"
 SUBTYPE_WEIGHTS = SUBTYPE_MODEL_DIR / "best.pth"
 DLIB_LANDMARK_MODEL = BINARY_MODEL_DIR / "shape_predictor_68_face_landmarks.dat"
 
-BINARY_CLASSES = ["无病(HC)", "有病"]
-SUPERCLASS_CLASSES = ["SS", "CMS", "AIS"]
-SUPERCLASS_FULL_NAMES = {
-    "SS": "SS (Syndromic Scoliosis)",
-    "CMS": "CMS (Chiari malformation-associated scoliosis)",
-    "AIS": "AIS (Adolescent Idiopathic Scoliosis)",
-}
+BINARY_CLASSES = ["未提示脊柱侧弯相关面部特征（健康对照）", "提示脊柱侧弯相关面部特征"]
+BINARY_DISEASE_INDEX = 1
+
+SUPERCLASS_CLASSES = [
+    "综合征型脊柱侧弯",
+    "Chiari 畸形相关脊柱侧弯",
+    "青少年特发性脊柱侧弯",
+]
+SUPERCLASS_SYNDROMIC_INDEX = 0
 
 SS_SUBTYPE_CLASSES = [
-    "AMC (Arthrogryposis Multiplex Congenita)",
-    "EDS (Ehlers–Danlos Syndrome)",
-    "FSS (Freeman-Sheldon syndrome)",
-    "GSD (Gorham-Stout disease)",
-    "MFS (Marfan syndrome)",
-    "NF-1 (Neurofibromatosis type 1)",
-    "Osteochondrodysplasia",
-    "Osteogenesis imperfecta",
-    "Other Syndrome",
-    "PWS (Prader-Willi syndrome)",
-    "SGS (Shprintzen-Goldberg syndrome)",
+    "多发性关节挛缩症",
+    "埃勒斯-当洛斯综合征",
+    "弗里曼-谢尔登综合征",
+    "戈勒姆-斯托特病",
+    "马方综合征",
+    "1型神经纤维瘤病",
+    "骨软骨发育不良",
+    "成骨不全",
+    "其他综合征",
+    "普拉德-威利综合征",
+    "施普林岑-戈德堡综合征",
 ]
 
 SS_DISPLAY_THRESHOLD = 0.50

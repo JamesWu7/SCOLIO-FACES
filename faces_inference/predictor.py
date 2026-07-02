@@ -6,6 +6,7 @@ from PIL import Image
 
 from .config import (
     BINARY_CLASSES,
+    BINARY_DISEASE_INDEX,
     BINARY_WEIGHTS,
     DLIB_LANDMARK_MODEL,
     MODEL_VERSIONS,
@@ -13,7 +14,7 @@ from .config import (
     SS_SUBTYPE_CLASSES,
     SUBTYPE_WEIGHTS,
     SUPERCLASS_CLASSES,
-    SUPERCLASS_FULL_NAMES,
+    SUPERCLASS_SYNDROMIC_INDEX,
     SUPERCLASS_WEIGHTS,
 )
 from .models import BinaryCNNCBAM, ResNet18Etiology, ResNet50SSSubtype
@@ -44,8 +45,8 @@ class FACESPredictor:
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
         self.cropper = FaceCropper(DLIB_LANDMARK_MODEL)
         self.binary_model = self._load_binary_model()
-        self.etiology_model = self._load_etiology_model()
-        self.subtype_model = self._load_subtype_model()
+        self.etiology_model = None
+        self.subtype_model = None
 
     def _load_binary_model(self):
         if not BINARY_WEIGHTS.exists():
@@ -57,21 +58,27 @@ class FACESPredictor:
         return model
 
     def _load_etiology_model(self):
+        if self.etiology_model is not None:
+            return self.etiology_model
         if not SUPERCLASS_WEIGHTS.exists():
             raise FileNotFoundError(f"Missing etiology model weights: {SUPERCLASS_WEIGHTS}")
         model = ResNet18Etiology(dropout_rate=0.5)
         model.load_state_dict(_torch_load(SUPERCLASS_WEIGHTS, self.device))
         model.to(self.device)
         model.eval()
+        self.etiology_model = model
         return model
 
     def _load_subtype_model(self):
+        if self.subtype_model is not None:
+            return self.subtype_model
         if not SUBTYPE_WEIGHTS.exists():
             raise FileNotFoundError(f"Missing SS subtype model weights: {SUBTYPE_WEIGHTS}")
         model = ResNet50SSSubtype(num_classes=len(SS_SUBTYPE_CLASSES), dropout_rate=0.5)
         model.load_state_dict(_torch_load(SUBTYPE_WEIGHTS, self.device))
         model.to(self.device)
         model.eval()
+        self.subtype_model = model
         return model
 
     @torch.inference_mode()
@@ -86,28 +93,57 @@ class FACESPredictor:
         face_image = crop_result.image.convert("RGB")
 
         binary_tensor = BINARY_TRANSFORM(face_image).unsqueeze(0).to(self.device)
-        resnet_tensor = RESNET_TRANSFORM(face_image).unsqueeze(0).to(self.device)
 
         disease_logit = self.binary_model(binary_tensor)
         disease_prob = torch.sigmoid(disease_logit).flatten()[0].item()
         binary_probs = [1.0 - disease_prob, disease_prob]
+        binary = _ranked_results(BINARY_CLASSES, binary_probs)
 
-        etiology_logits = self.etiology_model(resnet_tensor)
+        disease_is_top = binary[0]["class_name"] == BINARY_CLASSES[BINARY_DISEASE_INDEX]
+        if not disease_is_top:
+            warnings.append(
+                "二分类结果未提示脊柱侧弯相关面部特征，因此未继续运行病因大类模型和综合征型细分类模型。"
+            )
+            return {
+                "cropped_face": face_image,
+                "face_crop_method": crop_result.method,
+                "binary": binary,
+                "etiology": [],
+                "ss_subtypes": [],
+                "show_ss_subtypes": False,
+                "downstream_skipped": True,
+                "warnings": warnings,
+                "model_versions": MODEL_VERSIONS,
+                "device": str(self.device),
+                "top_summary": {
+                    "screening_result": binary[0]["class_name"],
+                    "screening_probability": binary[0]["probability"],
+                    "etiology_top1": "未运行",
+                    "etiology_probability": None,
+                    "ss_subtype_top3": [],
+                },
+            }
+
+        resnet_tensor = RESNET_TRANSFORM(face_image).unsqueeze(0).to(self.device)
+        etiology_model = self._load_etiology_model()
+        subtype_model = self._load_subtype_model()
+
+        etiology_logits = etiology_model(resnet_tensor)
         etiology_probs = torch.softmax(etiology_logits, dim=1).flatten().cpu().tolist()
 
-        subtype_logits = self.subtype_model(resnet_tensor)
+        subtype_logits = subtype_model(resnet_tensor)
         subtype_probs = torch.softmax(subtype_logits, dim=1).flatten().cpu().tolist()
 
-        binary = _ranked_results(BINARY_CLASSES, binary_probs)
         etiology = _ranked_results(SUPERCLASS_CLASSES, etiology_probs)
         ss_subtypes = _ranked_results(SS_SUBTYPE_CLASSES, subtype_probs)
 
         etiology_top1 = etiology[0]["class_name"]
-        ss_probability = next(item["probability"] for item in etiology if item["class_name"] == "SS")
-        show_ss_subtypes = etiology_top1 == "SS" or ss_probability >= SS_DISPLAY_THRESHOLD
+        syndromic_class = SUPERCLASS_CLASSES[SUPERCLASS_SYNDROMIC_INDEX]
+        ss_probability = next(item["probability"] for item in etiology if item["class_name"] == syndromic_class)
+        show_ss_subtypes = etiology_top1 == syndromic_class or ss_probability >= SS_DISPLAY_THRESHOLD
         if not show_ss_subtypes:
             warnings.append(
-                "SS 不是当前三分类最高支持类别，SS 11类细分结果仅作为补充参考。"
+                "综合征型脊柱侧弯不是当前病因大类最高支持类别，综合征型 11 类细分结果仅作为补充参考。"
             )
 
         return {
@@ -115,9 +151,9 @@ class FACESPredictor:
             "face_crop_method": crop_result.method,
             "binary": binary,
             "etiology": etiology,
-            "etiology_full_names": SUPERCLASS_FULL_NAMES,
             "ss_subtypes": ss_subtypes,
             "show_ss_subtypes": show_ss_subtypes,
+            "downstream_skipped": False,
             "warnings": warnings,
             "model_versions": MODEL_VERSIONS,
             "device": str(self.device),

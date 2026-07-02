@@ -1,5 +1,5 @@
 ---
-title: FACES
+title: 面部特征辅助脊柱侧弯病因分层
 emoji: 🧬
 colorFrom: green
 colorTo: blue
@@ -15,21 +15,21 @@ license: apache-2.0
   <img src="logo.png" alt="Faces Logo" width="500"/>
 </p>
 
-# FACES
+# 面部特征辅助脊柱侧弯病因分层
 
-**Facial Analysis for Classification of Etiology in Scoliosis**
+基于正面人脸照片的脊柱侧弯病因分层科研演示工具。
 
-Deep learning-based facial image analysis for hierarchical screening and etiological stratification of pediatric scoliosis.
+本项目使用深度学习模型，对儿童和青少年脊柱侧弯进行分层筛查和病因支持度排序。模型输出仅表示相对支持度，不是独立诊断结论。
 
-## Web app and deployment
+## 网页应用和部署
 
-This repository includes a Gradio app for the FACES hierarchical inference workflow:
+本仓库包含一个 Gradio 网页应用，推理流程为：
 
-1. Binary screening: healthy control vs. scoliosis.
-2. Etiological superclass classification: AIS, CMS and SS.
-3. Fine-grained SS subtype ranking across 11 syndromic scoliosis subtypes.
+1. 二分类筛查：未提示脊柱侧弯相关面部特征（健康对照） versus 提示脊柱侧弯相关面部特征。
+2. 若二分类提示脊柱侧弯相关面部特征，再进行病因大类分层：青少年特发性脊柱侧弯、Chiari 畸形相关脊柱侧弯、综合征型脊柱侧弯。
+3. 若进入后续流程，输出综合征型脊柱侧弯 11 类细分支持度排序。
 
-The app is intended for research demonstration and clinical triage support only. Model outputs are model-derived relative support scores, not standalone clinical diagnoses. Standard clinical assessment, radiographs, MRI, genetic testing and specialist review remain required.
+本应用仅用于科研展示和临床分诊辅助。标准临床评估、站立位全脊柱放射片、脊柱磁共振成像、遗传检测和专科医生评估仍然是必要环节。
 
 ## Option 1: Local installation
 

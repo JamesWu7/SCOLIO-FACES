@@ -19,6 +19,12 @@ def main():
         print("Model loading passed.")
         return
 
+    if result.get("downstream_skipped"):
+        assert result["etiology"] == []
+        assert result["ss_subtypes"] == []
+        print("Binary model loading and downstream skip check passed.")
+        return
+
     etiology_sum = sum(item["probability"] for item in result["etiology"])
     subtype_sum = sum(item["probability"] for item in result["ss_subtypes"])
     assert abs(etiology_sum - 1.0) < 1e-4, etiology_sum
