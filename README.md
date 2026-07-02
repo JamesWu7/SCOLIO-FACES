@@ -15,7 +15,7 @@
   <a href="https://github.com/JamesWu7/SCOLIO-FACES">
     <img src="https://img.shields.io/badge/GitHub-Source%20Code-black?logo=github" alt="GitHub source code"/>
   </a>
-  <img src="https://img.shields.io/badge/License-Apache--2.0-blue" alt="Apache-2.0 license"/>
+  <img src="https://img.shields.io/badge/License-CC%20BY--NC%204.0-blue" alt="CC BY-NC 4.0 license"/>
 </p>
 
 ## Links
