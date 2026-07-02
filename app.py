@@ -109,20 +109,24 @@ def run_faces_app(image: Image.Image):
     except Exception as exc:
         message = f"Inference could not be completed: {exc}"
         empty = pd.DataFrame(columns=["Class", "Probability", "Percent"])
-        return None, message, empty, empty, empty, None, CLINICAL_NOTE
+        return None, message, empty, None, empty, None, empty, None, CLINICAL_NOTE
 
     binary_df = _to_dataframe(result["binary"])
     etiology_df = _to_dataframe(result["etiology"])
     subtype_df = _to_dataframe(result["ss_subtypes"])
-    fig = _plot_probabilities(result["ss_subtypes"], "Ranked syndromic scoliosis subtype support")
+    binary_fig = _plot_probabilities(result["binary"], "Binary screening probabilities")
+    etiology_fig = _plot_probabilities(result["etiology"], "Etiology superclass probabilities")
+    subtype_fig = _plot_probabilities(result["ss_subtypes"], "Ranked syndromic scoliosis subtype support")
 
     return (
         result["cropped_face"],
         _summary_markdown(result),
         binary_df,
+        binary_fig,
         etiology_df,
+        etiology_fig,
         subtype_df,
-        fig,
+        subtype_fig,
         CLINICAL_NOTE,
     )
 
@@ -147,8 +151,10 @@ Upload one clear, unobstructed frontal facial photograph. The system first perfo
     with gr.Tabs():
         with gr.Tab("Binary screening"):
             binary_table = gr.Dataframe(label="Binary screening probabilities", interactive=False)
+            binary_plot = gr.Plot(label="Binary screening probability chart")
         with gr.Tab("Etiology superclass"):
             etiology_table = gr.Dataframe(label="Etiology superclass probabilities", interactive=False)
+            etiology_plot = gr.Plot(label="Etiology superclass probability chart")
         with gr.Tab("Syndromic subtype ranking"):
             subtype_table = gr.Dataframe(label="Syndromic scoliosis subtype probabilities", interactive=False)
             subtype_plot = gr.Plot(label="Ranked syndromic scoliosis subtype support")
@@ -167,7 +173,9 @@ Upload one clear, unobstructed frontal facial photograph. The system first perfo
             cropped_output,
             summary_output,
             binary_table,
+            binary_plot,
             etiology_table,
+            etiology_plot,
             subtype_table,
             subtype_plot,
             clinical_note,

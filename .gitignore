@@ -7,3 +7,9 @@ tmp/
 uploads/
 outputs/
 *.log
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.onnx
+*.dat
