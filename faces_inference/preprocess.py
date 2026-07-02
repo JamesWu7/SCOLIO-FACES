@@ -70,10 +70,12 @@ class FaceCropper:
                 return FaceCropResult(
                     cropped,
                     method="opencv_haar",
-                    warning="dlib/68点模型不可用，已使用 OpenCV Haar 人脸检测作为回退。",
+                    warning="The dlib 68-point landmark model is unavailable; OpenCV Haar face detection was used as a fallback.",
                 )
 
-        raise ValueError("未检测到可靠正脸，请上传清晰、无遮挡、正面的人脸照片。")
+        raise ValueError(
+            "No reliable frontal face was detected. Please upload a clear, unobstructed frontal facial photograph."
+        )
 
     def _crop_with_dlib(self, image: Image.Image) -> Image.Image | None:
         image_np = np.array(image)
