@@ -19,6 +19,7 @@ from .config import (
 )
 from .models import BinaryCNNCBAM, ResNet18Etiology, ResNet50SSSubtype
 from .preprocess import BINARY_TRANSFORM, RESNET_TRANSFORM, FaceCropper
+from .weights import resolve_weight_path
 
 
 def _torch_load(path: Path, device: torch.device):
@@ -43,16 +44,15 @@ def _ranked_results(class_names, probabilities):
 class FACESPredictor:
     def __init__(self, device: str | None = None):
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
-        self.cropper = FaceCropper(DLIB_LANDMARK_MODEL)
+        self.cropper = FaceCropper(resolve_weight_path(DLIB_LANDMARK_MODEL))
         self.binary_model = self._load_binary_model()
         self.etiology_model = None
         self.subtype_model = None
 
     def _load_binary_model(self):
-        if not BINARY_WEIGHTS.exists():
-            raise FileNotFoundError(f"Missing binary model weights: {BINARY_WEIGHTS}")
+        binary_weights = resolve_weight_path(BINARY_WEIGHTS)
         model = BinaryCNNCBAM(input_channels=3, dropout_rate=0.35)
-        model.load_state_dict(_torch_load(BINARY_WEIGHTS, self.device))
+        model.load_state_dict(_torch_load(binary_weights, self.device))
         model.to(self.device)
         model.eval()
         return model
@@ -60,10 +60,9 @@ class FACESPredictor:
     def _load_etiology_model(self):
         if self.etiology_model is not None:
             return self.etiology_model
-        if not SUPERCLASS_WEIGHTS.exists():
-            raise FileNotFoundError(f"Missing etiology model weights: {SUPERCLASS_WEIGHTS}")
+        superclass_weights = resolve_weight_path(SUPERCLASS_WEIGHTS)
         model = ResNet18Etiology(dropout_rate=0.5)
-        model.load_state_dict(_torch_load(SUPERCLASS_WEIGHTS, self.device))
+        model.load_state_dict(_torch_load(superclass_weights, self.device))
         model.to(self.device)
         model.eval()
         self.etiology_model = model
@@ -72,10 +71,9 @@ class FACESPredictor:
     def _load_subtype_model(self):
         if self.subtype_model is not None:
             return self.subtype_model
-        if not SUBTYPE_WEIGHTS.exists():
-            raise FileNotFoundError(f"Missing SS subtype model weights: {SUBTYPE_WEIGHTS}")
+        subtype_weights = resolve_weight_path(SUBTYPE_WEIGHTS)
         model = ResNet50SSSubtype(num_classes=len(SS_SUBTYPE_CLASSES), dropout_rate=0.5)
-        model.load_state_dict(_torch_load(SUBTYPE_WEIGHTS, self.device))
+        model.load_state_dict(_torch_load(subtype_weights, self.device))
         model.to(self.device)
         model.eval()
         self.subtype_model = model

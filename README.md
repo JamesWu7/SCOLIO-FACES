@@ -111,6 +111,7 @@ RShiny is feasible, but it is not used in v1. The model stack is already Python/
 
 - The app performs single-session inference and does not intentionally save uploaded raw facial images.
 - Do not commit raw facial images, individual-level clinical data or patient identifiers to GitHub.
+- For a public Space, do not store model checkpoint files in the public Space repository. Store them in a private Hugging Face model repository and set Space secrets `SCOLIO_FACES_MODEL_REPO_ID` and `SCOLIO_FACES_MODEL_TOKEN`.
 - Facial photographs are identifiable medical data. Use explicit consent, restricted access and local institutional governance before any clinical or external use.
 - Public demo deployments should use consented demonstration images only. Avoid uploading patient faces to public services unless institutional approval and consent explicitly cover that use.
 
