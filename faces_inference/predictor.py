@@ -84,7 +84,7 @@ class FACESPredictor:
     @torch.inference_mode()
     def predict(self, image: Image.Image) -> dict:
         if image is None:
-            raise ValueError("请先上传一张正面人脸照片。")
+            raise ValueError("Please upload one frontal facial photograph first.")
 
         warnings = []
         crop_result = self.cropper.crop(image)
@@ -102,7 +102,8 @@ class FACESPredictor:
         disease_is_top = binary[0]["class_name"] == BINARY_CLASSES[BINARY_DISEASE_INDEX]
         if not disease_is_top:
             warnings.append(
-                "二分类结果未提示脊柱侧弯相关面部特征，因此未继续运行病因大类模型和综合征型细分类模型。"
+                "The binary screening result did not suggest a scoliosis-related facial phenotype; "
+                "the etiology superclass model and the syndromic scoliosis subtype model were not run."
             )
             return {
                 "cropped_face": face_image,
@@ -118,7 +119,7 @@ class FACESPredictor:
                 "top_summary": {
                     "screening_result": binary[0]["class_name"],
                     "screening_probability": binary[0]["probability"],
-                    "etiology_top1": "未运行",
+                    "etiology_top1": "Not run",
                     "etiology_probability": None,
                     "ss_subtype_top3": [],
                 },
@@ -143,7 +144,8 @@ class FACESPredictor:
         show_ss_subtypes = etiology_top1 == syndromic_class or ss_probability >= SS_DISPLAY_THRESHOLD
         if not show_ss_subtypes:
             warnings.append(
-                "综合征型脊柱侧弯不是当前病因大类最高支持类别，综合征型 11 类细分结果仅作为补充参考。"
+                "Syndromic scoliosis is not the etiology superclass with the highest support; "
+                "the eleven-class syndromic scoliosis subtype results are provided as supplementary information."
             )
 
         return {

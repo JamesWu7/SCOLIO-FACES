@@ -13,22 +13,24 @@ from faces_inference import predict_faces
 APP_ROOT = Path(__file__).resolve().parent
 
 CLINICAL_NOTE = (
-    "本工具用于面部特征辅助脊柱侧弯病因分层研究框架下的科研展示和临床分诊辅助。"
-    "模型输出表示相对支持度，不能作为独立诊断结论，也不能替代站立位全脊柱放射片、"
-    "脊柱磁共振成像、遗传检测、病史查体和脊柱外科/医学遗传专科评估。若结果提示脊柱侧弯"
-    "或综合征型脊柱侧弯相关支持度较高，建议进入标准临床评估流程。"
+    "This tool is intended for research demonstration and clinical triage support within the "
+    "SCOLIO-FACES framework. Model outputs are relative support scores and must not be used as "
+    "standalone diagnoses. They do not replace standing whole-spine radiographs, spine magnetic "
+    "resonance imaging, genetic testing, medical history, physical examination, or evaluation by "
+    "spine surgery and medical genetics specialists. If the model suggests scoliosis-related or "
+    "syndromic scoliosis-related support, standard clinical evaluation is still required."
 )
 
 
-def _to_dataframe(items, label_col="类别"):
+def _to_dataframe(items, label_col="Class"):
     if not items:
-        return pd.DataFrame([{label_col: "未运行", "概率": "", "百分比": ""}])
+        return pd.DataFrame([{label_col: "Not run", "Probability": "", "Percent": ""}])
     return pd.DataFrame(
         [
             {
                 label_col: item["class_name"],
-                "概率": round(item["probability"], 3),
-                "百分比": f"{item['probability_percent']:.1f}%",
+                "Probability": round(item["probability"], 3),
+                "Percent": f"{item['probability_percent']:.1f}%",
             }
             for item in items
         ]
@@ -48,7 +50,7 @@ def _plot_probabilities(items, title, limit=None):
     ax.set_yticks(range(len(labels)))
     ax.set_yticklabels(labels, fontsize=9)
     ax.set_xlim(0, 1)
-    ax.set_xlabel("模型相对支持度")
+    ax.set_xlabel("Model-derived relative support")
     ax.set_title(title)
     ax.grid(axis="x", alpha=0.25)
     for bar, value in zip(bars, values):
@@ -68,9 +70,10 @@ def _summary_markdown(result):
     top = result["top_summary"]
     if result.get("downstream_skipped"):
         downstream_block = (
-            "- 病因大类最高支持类别：`未运行`\n"
-            "- 综合征型脊柱侧弯 11 类细分：`未运行`\n\n"
-            "二分类结果未提示脊柱侧弯相关面部特征，因此本次没有进入后续两个模型。"
+            "- Etiology superclass: `Not run`\n"
+            "- Syndromic scoliosis subtype ranking: `Not run`\n\n"
+            "The binary screening result did not suggest a scoliosis-related facial phenotype, "
+            "so the etiology superclass model and the syndromic scoliosis subtype model were not run."
         )
     else:
         subtype_lines = "\n".join(
@@ -80,22 +83,22 @@ def _summary_markdown(result):
             ]
         )
         downstream_block = (
-            f"- 病因大类最高支持类别：`{top['etiology_top1']}` ({top['etiology_probability']:.3f})\n"
-            f"- 综合征型脊柱侧弯 11 类细分前三位：\n{subtype_lines}"
+            f"- Etiology superclass with highest support: `{top['etiology_top1']}` ({top['etiology_probability']:.3f})\n"
+            f"- Top three syndromic scoliosis subtype supports:\n{subtype_lines}"
         )
     warnings = "\n".join([f"- {html.escape(w)}" for w in result["warnings"]])
-    warning_block = f"\n\n**提示**\n{warnings}" if warnings else ""
+    warning_block = f"\n\n**Notes**\n{warnings}" if warnings else ""
 
     return f"""
-**分层预测摘要**
+**Hierarchical prediction summary**
 
-- 二分类筛查最高支持类别：`{top["screening_result"]}` ({top["screening_probability"]:.3f})
+- Binary screening class with highest support: `{top["screening_result"]}` ({top["screening_probability"]:.3f})
 {downstream_block}
 
-**运行信息**
+**Run information**
 
-- 人脸裁剪: `{result["face_crop_method"]}`
-- 推理设备: `{result["device"]}`
+- Face crop method: `{result["face_crop_method"]}`
+- Inference device: `{result["device"]}`
 {warning_block}
 """
 
@@ -104,14 +107,14 @@ def run_faces_app(image: Image.Image):
     try:
         result = predict_faces(image)
     except Exception as exc:
-        message = f"无法完成推理：{exc}"
-        empty = pd.DataFrame(columns=["类别", "概率", "百分比"])
+        message = f"Inference could not be completed: {exc}"
+        empty = pd.DataFrame(columns=["Class", "Probability", "Percent"])
         return None, message, empty, empty, empty, None, CLINICAL_NOTE
 
     binary_df = _to_dataframe(result["binary"])
     etiology_df = _to_dataframe(result["etiology"])
     subtype_df = _to_dataframe(result["ss_subtypes"])
-    fig = _plot_probabilities(result["ss_subtypes"], "综合征型脊柱侧弯 11 类细分支持度排序")
+    fig = _plot_probabilities(result["ss_subtypes"], "Ranked syndromic scoliosis subtype support")
 
     return (
         result["cropped_face"],
@@ -124,35 +127,35 @@ def run_faces_app(image: Image.Image):
     )
 
 
-with gr.Blocks(title="面部特征辅助脊柱侧弯病因分层", theme=gr.themes.Soft()) as demo:
+with gr.Blocks(title="SCOLIO-FACES", theme=gr.themes.Soft()) as demo:
     gr.Markdown(
         """
-# 面部特征辅助脊柱侧弯病因分层
+# SCOLIO-FACES
 
-上传一张清晰、无遮挡、正面人脸照片。系统先进行“未提示脊柱侧弯相关面部特征/提示脊柱侧弯相关面部特征”二分类筛查；只有当二分类结果提示脊柱侧弯相关面部特征时，才继续输出病因大类和综合征型脊柱侧弯 11 类细分支持度。
+Upload one clear, unobstructed frontal facial photograph. The system first performs binary screening for scoliosis-related facial phenotype support. Only when the binary model suggests a scoliosis-related facial phenotype will the app continue to the etiology superclass model and the eleven-class syndromic scoliosis subtype model.
 """
     )
 
     with gr.Row():
         with gr.Column(scale=1):
-            image_input = gr.Image(type="pil", label="上传正面人脸照片")
-            submit_btn = gr.Button("开始分层预测", variant="primary")
+            image_input = gr.Image(type="pil", label="Upload frontal face photograph")
+            submit_btn = gr.Button("Run hierarchical prediction", variant="primary")
         with gr.Column(scale=1):
-            cropped_output = gr.Image(type="pil", label="人脸裁剪预览", interactive=False)
-            summary_output = gr.Markdown(label="分层预测摘要")
+            cropped_output = gr.Image(type="pil", label="Cropped face preview", interactive=False)
+            summary_output = gr.Markdown(label="Hierarchical prediction summary")
 
     with gr.Tabs():
-        with gr.Tab("二分类筛查"):
-            binary_table = gr.Dataframe(label="二分类筛查概率", interactive=False)
-        with gr.Tab("病因大类"):
-            etiology_table = gr.Dataframe(label="病因大类概率", interactive=False)
-        with gr.Tab("综合征型 11 类细分"):
-            subtype_table = gr.Dataframe(label="综合征型脊柱侧弯 11 类细分概率", interactive=False)
-            subtype_plot = gr.Plot(label="综合征型脊柱侧弯 11 类细分支持度排序")
-        with gr.Tab("医学说明"):
+        with gr.Tab("Binary screening"):
+            binary_table = gr.Dataframe(label="Binary screening probabilities", interactive=False)
+        with gr.Tab("Etiology superclass"):
+            etiology_table = gr.Dataframe(label="Etiology superclass probabilities", interactive=False)
+        with gr.Tab("Syndromic subtype ranking"):
+            subtype_table = gr.Dataframe(label="Syndromic scoliosis subtype probabilities", interactive=False)
+            subtype_plot = gr.Plot(label="Ranked syndromic scoliosis subtype support")
+        with gr.Tab("Clinical note"):
             clinical_note = gr.Textbox(
                 value=CLINICAL_NOTE,
-                label="医学说明",
+                label="Clinical note",
                 lines=5,
                 interactive=False,
             )
