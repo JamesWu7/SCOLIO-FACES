@@ -10,7 +10,6 @@ from .config import (
     BINARY_WEIGHTS,
     DLIB_LANDMARK_MODEL,
     MODEL_VERSIONS,
-    SS_DISPLAY_THRESHOLD,
     SS_SUBTYPE_CLASSES,
     SUBTYPE_WEIGHTS,
     SUPERCLASS_CLASSES,
@@ -125,25 +124,25 @@ class FACESPredictor:
 
         resnet_tensor = RESNET_TRANSFORM(face_image).unsqueeze(0).to(self.device)
         etiology_model = self._load_etiology_model()
-        subtype_model = self._load_subtype_model()
 
         etiology_logits = etiology_model(resnet_tensor)
         etiology_probs = torch.softmax(etiology_logits, dim=1).flatten().cpu().tolist()
 
-        subtype_logits = subtype_model(resnet_tensor)
-        subtype_probs = torch.softmax(subtype_logits, dim=1).flatten().cpu().tolist()
-
         etiology = _ranked_results(SUPERCLASS_CLASSES, etiology_probs)
-        ss_subtypes = _ranked_results(SS_SUBTYPE_CLASSES, subtype_probs)
 
         etiology_top1 = etiology[0]["class_name"]
         syndromic_class = SUPERCLASS_CLASSES[SUPERCLASS_SYNDROMIC_INDEX]
-        ss_probability = next(item["probability"] for item in etiology if item["class_name"] == syndromic_class)
-        show_ss_subtypes = etiology_top1 == syndromic_class or ss_probability >= SS_DISPLAY_THRESHOLD
-        if not show_ss_subtypes:
+        show_ss_subtypes = etiology_top1 == syndromic_class
+        if show_ss_subtypes:
+            subtype_model = self._load_subtype_model()
+            subtype_logits = subtype_model(resnet_tensor)
+            subtype_probs = torch.softmax(subtype_logits, dim=1).flatten().cpu().tolist()
+            ss_subtypes = _ranked_results(SS_SUBTYPE_CLASSES, subtype_probs)
+        else:
+            ss_subtypes = []
             warnings.append(
                 "Syndromic scoliosis is not the etiology superclass with the highest support; "
-                "the eleven-class syndromic scoliosis subtype results are provided as supplementary information."
+                "the eleven-class syndromic scoliosis subtype model was not run."
             )
 
         return {

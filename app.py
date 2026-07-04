@@ -75,6 +75,13 @@ def _summary_markdown(result):
             "The binary screening result did not suggest a scoliosis-related facial phenotype, "
             "so the etiology superclass model and the syndromic scoliosis subtype model were not run."
         )
+    elif not result.get("show_ss_subtypes"):
+        downstream_block = (
+            f"- Etiology superclass with highest support: `{top['etiology_top1']}` ({top['etiology_probability']:.3f})\n"
+            "- Syndromic scoliosis subtype ranking: `Not run`\n\n"
+            "The etiology superclass model did not select syndromic scoliosis as the highest-support class, "
+            "so the eleven-class syndromic scoliosis subtype model was not run."
+        )
     else:
         subtype_lines = "\n".join(
             [
